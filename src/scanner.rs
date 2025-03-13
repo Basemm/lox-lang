@@ -223,6 +223,10 @@ impl<'a> Scanner<'a> {
     fn add_token_string(&mut self) -> bool {
         loop {
             break match self.advance() {
+                Some("\\") => {
+                    self.advance();
+                    continue;
+                }
                 Some("\"") => {
                     self.add_token(&Token::String);
                     true

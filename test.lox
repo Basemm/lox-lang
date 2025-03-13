@@ -1,3 +1,2 @@
 // Test scanner
-var x = 10
-if (x = "a" and b = 15.55)
+var x = "te\"st"

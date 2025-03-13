@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     LeftParen,
     RightParen,
@@ -104,9 +104,9 @@ impl<'a> Scanner<'a> {
         loop {
             self.column += self.next_offset - self.start;
             self.start = self.next_offset;
-            let c = self.advance();
+            let token = self.scan_token();
 
-            if !self.scan_token(c) {
+            if token.is_some_and(|token| *token == Token::EOF) {
                 break;
             }
         }
@@ -114,11 +114,11 @@ impl<'a> Scanner<'a> {
         &self.token_data_list
     }
 
-    fn scan_token(&mut self, c: Option<&'a str>) -> bool {
+    fn scan_token(&mut self) -> Option<&Token> {
+        let c = self.advance();
         match c {
             Some(c) => {
                 let c = c.chars().next().unwrap();
-
                 match c {
                     '(' => self.add_token(&Token::LeftParen),
                     ')' => self.add_token(&Token::RightParen),
@@ -138,36 +138,38 @@ impl<'a> Scanner<'a> {
 
                     '/' => self.add_token_division_or_comment(),
 
-                    '\n' => self.mark_new_line(),
+                    '\n' => {
+                        self.mark_new_line();
+                        None
+                    }
 
                     '"' => {
                         if !self.add_token_string() {
                             // TODO Report error
                         }
+                        None
                     }
 
                     x if x.is_ascii_digit() => self.add_token_number(),
                     x if x.is_ascii_alphabetic() => self.add_token_identifier_or_keyword(),
-                    x if x.is_whitespace() => {} // Skip whitespace
+                    x if x.is_whitespace() => None, // Skip whitespace
                     x => {
                         // TODO Report error
+                        None
                     }
                 }
             }
-            None => {
-                self.add_token(&Token::EOF);
-                return false;
-            }
+            None => self.add_token(&Token::EOF),
         }
-
-        true
     }
 
-    fn add_token_division_or_comment(&mut self) {
+    fn add_token_division_or_comment(&mut self) -> Option<&Token> {
         if self.is_next("/") {
             self.ignore_until_end();
+            None
         } else {
             self.add_token(&Token::Slash);
+            Some(&Token::Slash)
         }
     }
 
@@ -201,7 +203,7 @@ impl<'a> Scanner<'a> {
         &self.code[self.start..self.next_offset]
     }
 
-    fn add_token(&mut self, token: &'a Token) {
+    fn add_token(&mut self, token: &'a Token) -> Option<&Token> {
         self.token_data_list.push(TokenData {
             token,
             lexeme: self.get_lexeme(),
@@ -209,14 +211,21 @@ impl<'a> Scanner<'a> {
             column: self.column,
             line: self.line,
         });
+
+        Some(token)
     }
 
-    fn add_token_if_next(&mut self, next_str: &str, true_token: &'a Token, false_token: &'a Token) {
+    fn add_token_if_next(
+        &mut self,
+        next_str: &str,
+        true_token: &'a Token,
+        false_token: &'a Token,
+    ) -> Option<&Token> {
         if self.is_next(next_str) {
             self.advance();
-            self.add_token(true_token);
+            self.add_token(true_token)
         } else {
-            self.add_token(false_token);
+            self.add_token(false_token)
         }
     }
 
@@ -237,7 +246,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn add_token_identifier_or_keyword(&mut self) {
+    fn add_token_identifier_or_keyword(&mut self) -> Option<&Token> {
         while self.is_next_cond(|c| c.is_alphanumeric() || c == '_') {
             self.advance();
         }
@@ -263,10 +272,10 @@ impl<'a> Scanner<'a> {
             _ => &Token::Identifier,
         };
 
-        self.add_token(token);
+        self.add_token(token)
     }
 
-    fn add_token_number(&mut self) {
+    fn add_token_number(&mut self) -> Option<&Token> {
         while self.is_next_cond(|c| c.is_ascii_digit()) {
             self.advance();
         }
@@ -279,7 +288,7 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        self.add_token(&Token::Number);
+        self.add_token(&Token::Number)
     }
 
     fn ignore_until_end(&mut self) {

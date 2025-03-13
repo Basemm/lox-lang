@@ -114,10 +114,10 @@ impl<'a> Scanner<'a> {
         &self.token_data_list
     }
 
-    fn scan_token(&mut self, str: Option<&'a str>) -> bool {
-        match str {
-            Some(str) => {
-                let c = str.chars().next().unwrap();
+    fn scan_token(&mut self, c: Option<&'a str>) -> bool {
+        match c {
+            Some(c) => {
+                let c = c.chars().next().unwrap();
 
                 match c {
                     '(' => self.add_token(&Token::LeftParen),

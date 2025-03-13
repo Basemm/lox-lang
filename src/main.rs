@@ -1,9 +1,11 @@
 use std::io::{self, BufRead, Write};
 
+use lox_lang::scanner::Scanner;
+
 pub fn run(code: &str) {
-    code.split_whitespace().for_each(|token| {
-        println!("Token: {}", token);
-    });
+    let mut scanner = Scanner::new(code);
+
+    println!("{:#?}", scanner.scan());
 }
 
 pub fn run_file(file_path: &str) {

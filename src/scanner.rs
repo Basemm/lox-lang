@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Token {
     LeftParen,
     RightParen,
@@ -54,7 +54,7 @@ pub enum Token {
 
 #[derive(Debug)]
 pub struct TokenData<'a> {
-    token: &'a Token,
+    token: Token,
     lexeme: &'a str,
     offset: usize,
     line: usize,
@@ -62,13 +62,7 @@ pub struct TokenData<'a> {
 }
 
 impl<'a> TokenData<'a> {
-    pub fn new(
-        token: &'a Token,
-        lexeme: &'a str,
-        offset: usize,
-        line: usize,
-        column: usize,
-    ) -> Self {
+    pub fn new(token: Token, lexeme: &'a str, offset: usize, line: usize, column: usize) -> Self {
         Self {
             token,
             lexeme,
@@ -106,7 +100,7 @@ impl<'a> Scanner<'a> {
             self.start = self.next_offset;
             let token = self.scan_token();
 
-            if token.is_some_and(|token| *token == Token::EOF) {
+            if token.is_some_and(|token| token == Token::EOF) {
                 break;
             }
         }
@@ -114,27 +108,27 @@ impl<'a> Scanner<'a> {
         &self.token_data_list
     }
 
-    fn scan_token(&mut self) -> Option<&Token> {
+    fn scan_token(&mut self) -> Option<Token> {
         let c = self.advance();
         match c {
             Some(c) => {
                 let c = c.chars().next().unwrap();
                 match c {
-                    '(' => self.add_token(&Token::LeftParen),
-                    ')' => self.add_token(&Token::RightParen),
-                    '{' => self.add_token(&Token::LeftBrace),
-                    '}' => self.add_token(&Token::RightBrace),
-                    '.' => self.add_token(&Token::Dot),
-                    ',' => self.add_token(&Token::Comma),
-                    ';' => self.add_token(&Token::Semicolon),
-                    '-' => self.add_token(&Token::Minus),
-                    '+' => self.add_token(&Token::Plus),
-                    '*' => self.add_token(&Token::Star),
+                    '(' => self.add_token(Token::LeftParen),
+                    ')' => self.add_token(Token::RightParen),
+                    '{' => self.add_token(Token::LeftBrace),
+                    '}' => self.add_token(Token::RightBrace),
+                    '.' => self.add_token(Token::Dot),
+                    ',' => self.add_token(Token::Comma),
+                    ';' => self.add_token(Token::Semicolon),
+                    '-' => self.add_token(Token::Minus),
+                    '+' => self.add_token(Token::Plus),
+                    '*' => self.add_token(Token::Star),
 
-                    '!' => self.add_token_if_next("=", &Token::BangEqual, &Token::Bang),
-                    '=' => self.add_token_if_next("=", &Token::EqualEqual, &Token::Equal),
-                    '>' => self.add_token_if_next("=", &Token::GreaterEqual, &Token::Greater),
-                    '<' => self.add_token_if_next("=", &Token::LessEqual, &Token::Less),
+                    '!' => self.add_token_if_next("=", Token::BangEqual, Token::Bang),
+                    '=' => self.add_token_if_next("=", Token::EqualEqual, Token::Equal),
+                    '>' => self.add_token_if_next("=", Token::GreaterEqual, Token::Greater),
+                    '<' => self.add_token_if_next("=", Token::LessEqual, Token::Less),
 
                     '/' => self.add_token_division_or_comment(),
 
@@ -159,17 +153,17 @@ impl<'a> Scanner<'a> {
                     }
                 }
             }
-            None => self.add_token(&Token::EOF),
+            None => self.add_token(Token::EOF),
         }
     }
 
-    fn add_token_division_or_comment(&mut self) -> Option<&Token> {
+    fn add_token_division_or_comment(&mut self) -> Option<Token> {
         if self.is_next("/") {
             self.ignore_until_end();
             None
         } else {
-            self.add_token(&Token::Slash);
-            Some(&Token::Slash)
+            self.add_token(Token::Slash);
+            Some(Token::Slash)
         }
     }
 
@@ -203,7 +197,7 @@ impl<'a> Scanner<'a> {
         &self.code[self.start..self.next_offset]
     }
 
-    fn add_token(&mut self, token: &'a Token) -> Option<&Token> {
+    fn add_token(&mut self, token: Token) -> Option<Token> {
         self.token_data_list.push(TokenData {
             token,
             lexeme: self.get_lexeme(),
@@ -218,9 +212,9 @@ impl<'a> Scanner<'a> {
     fn add_token_if_next(
         &mut self,
         next_str: &str,
-        true_token: &'a Token,
-        false_token: &'a Token,
-    ) -> Option<&Token> {
+        true_token: Token,
+        false_token: Token,
+    ) -> Option<Token> {
         if self.is_next(next_str) {
             self.advance();
             self.add_token(true_token)
@@ -237,7 +231,7 @@ impl<'a> Scanner<'a> {
                     continue;
                 }
                 Some("\"") => {
-                    self.add_token(&Token::String);
+                    self.add_token(Token::String);
                     true
                 }
                 Some(_) => continue,
@@ -246,36 +240,36 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn add_token_identifier_or_keyword(&mut self) -> Option<&Token> {
+    fn add_token_identifier_or_keyword(&mut self) -> Option<Token> {
         while self.is_next_cond(|c| c.is_alphanumeric() || c == '_') {
             self.advance();
         }
 
         let lexeme = self.get_lexeme();
         let token = match lexeme {
-            "and" => &Token::And,
-            "or" => &Token::Or,
-            "class" => &Token::Class,
-            "this" => &Token::This,
-            "super" => &Token::Super,
-            "for" => &Token::For,
-            "while" => &Token::While,
-            "if" => &Token::If,
-            "else" => &Token::Else,
-            "fun" => &Token::Fun,
-            "return" => &Token::Return,
-            "print" => &Token::Print,
-            "var" => &Token::Var,
-            "nil" => &Token::Nil,
-            "true" => &Token::True,
-            "false" => &Token::False,
-            _ => &Token::Identifier,
+            "and" => Token::And,
+            "or" => Token::Or,
+            "class" => Token::Class,
+            "this" => Token::This,
+            "super" => Token::Super,
+            "for" => Token::For,
+            "while" => Token::While,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "fun" => Token::Fun,
+            "return" => Token::Return,
+            "print" => Token::Print,
+            "var" => Token::Var,
+            "nil" => Token::Nil,
+            "true" => Token::True,
+            "false" => Token::False,
+            _ => Token::Identifier,
         };
 
         self.add_token(token)
     }
 
-    fn add_token_number(&mut self) -> Option<&Token> {
+    fn add_token_number(&mut self) -> Option<Token> {
         while self.is_next_cond(|c| c.is_ascii_digit()) {
             self.advance();
         }
@@ -288,7 +282,7 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        self.add_token(&Token::Number)
+        self.add_token(Token::Number)
     }
 
     fn ignore_until_end(&mut self) {

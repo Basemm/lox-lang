@@ -112,8 +112,7 @@ impl<'a> Scanner<'a> {
         let c = self.advance();
         match c {
             Some(c) => {
-                let c = c.chars().next().unwrap();
-                match c {
+                match c.chars().next().unwrap() {
                     '(' => self.add_token(Token::LeftParen),
                     ')' => self.add_token(Token::RightParen),
                     '{' => self.add_token(Token::LeftBrace),
